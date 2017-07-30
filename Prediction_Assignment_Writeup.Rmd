@@ -1,0 +1,42 @@
+---
+title: "Prediction Assignment Writeup"
+author: "Hauer-Glocke"
+date: "30 Juli 2017"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE, cache = TRUE, Message = FALSE)
+```
+
+#Synopsis
+
+```{r}
+
+```
+
+```{r}
+
+```
+
+#Data Loading and Processing
+
+```{r}
+
+```
+
+```{r}
+
+```
+
+#Prediction Analysis
+
+
+```{r}
+
+```
+
+```{r}
+
+```
+
