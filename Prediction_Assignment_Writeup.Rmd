@@ -11,32 +11,192 @@ knitr::opts_chunk$set(echo = TRUE, cache = TRUE, Message = FALSE)
 
 #Synopsis
 
-```{r}
+This report shows how a prediction model can be build to identify wether a participant is doing an exercise correctly based in the retrieved data from  his devices. The report consists of 3 parts:
 
-```
+1. Data Loading and Processing
+2. Build-Up of the Model
++ Build up a model
++ Cross Validation
++ Expectation of out of sample error
+3. Prediction Analysis
 
-```{r}
-
-```
+The prediction of 20 cases results in **19 correct results**.
 
 #Data Loading and Processing
 
-```{r}
+##Data Loading
+```{r, eval=FALSE}
+#Loading Packages
+library(readr)
+library(dplyr)
+library(caret)
+library(rattle)
+
+#Data Loading
+pml_df <- read_csv(url("https://d396qusza40orc.cloudfront.net/predmachlearn/pml-training.csv"))
+pml_pred <- read_csv(url("https://d396qusza40orc.cloudfront.net/predmachlearn/pml-testing.csv"))
+
+#Adjust Variables Classes
+pml_df$classe <- as.factor(pml_df$classe)
+pml_df$user_name <- as.factor(pml_df$user_name)
+pml_pred$user_name <- as.factor(pml_pred$user_name)
+
+```
+The dataset contains 160 variables, but one is only a running number and many others contain solely NAs. In the processing, I am cleaning up the dataset.
+
+```{r, message=FALSE, warning=FALSE, include=FALSE}
+#Loading Packages
+library(readr)
+library(dplyr)
+library(caret)
+library(rattle)
+
+#Data Loading
+pml_df <- read_csv(url("https://d396qusza40orc.cloudfront.net/predmachlearn/pml-training.csv"))
+pml_pred <- read_csv(url("https://d396qusza40orc.cloudfront.net/predmachlearn/pml-testing.csv"))
+
+#Adjust Variables Classes
+pml_df$classe <- as.factor(pml_df$classe)
+pml_df$user_name <- as.factor(pml_df$user_name)
+pml_pred$user_name <- as.factor(pml_pred$user_name)
 
 ```
 
-```{r}
+##Data Processing
+
+The data processing consists of two parts: Firstly, the deleting of NA-dominated variables and second the creation for testing and training dataset, which is needed for the cross evaluation.
+
+```{r, eval = FALSE}
+#Deal with NAs
+sum(is.na(pml_df)==TRUE) ##Number of NAs, which I need to reduce
+sum(is.na(pml_pred)==TRUE) ##Number of NAs, which I need to reduce
+
+
+pml_nas <- pml_df %>% #For training dataset
+        is.na() %>%
+        as.data.frame()
+relevant <- pml_nas[,is.na(summary(pml_nas)[3,])] %>%
+        names()
+
+pml_nas_pred <- pml_pred %>% #For prediction dataset, variables are the same except of 1 exception.
+        is.na() %>%
+        as.data.frame()
+relevant_pred <- pml_nas_pred[,grep("FALSE", x=summary(pml_nas_pred)[2,])] %>%
+        names() #Identify Vector without NAs
+
+sum(is.na(pml_df[,relevant])==TRUE) ##All variables with NAs are excluded
+sum(is.na(pml_pred[,relevant_pred])==TRUE) ##All variables with NAs are excluded
+
+pml_df <- pml_df[,relevant]
+pml_pred <- pml_pred[,relevant_pred]
+
+rm(pml_nas, pml_nas_pred, relevant, relevant_pred) ##Clear for unnecessary sets
+
+#Create Training and Testing Set
+set.seed(123)
+inTrain <- createDataPartition(y = pml_df$X1, p = 0.6, list = FALSE)
+pml_training <- pml_df[inTrain,]
+pml_testing <- pml_df[-inTrain,]
+pml_training <- pml_training[,-1] #X1 is just a running number
+pml_testing <- pml_testing[,-1] #X1 is just a running number
+rm(inTrain)
+```
+
+The given "test-dataset" is meant for the prediction at the end of the assignment, in order to validate the model, while creating it, it is necessary to part the main dataset into two before proceeding. I used the recommended 60 to 40 partitioning, another partitioning can also be used.
+
+```{r, include = FALSE}
+#Deal with NAs
+sum(is.na(pml_df)==TRUE) ##Number of NAs, which I need to reduce
+sum(is.na(pml_pred)==TRUE) ##Number of NAs, which I need to reduce
+
+
+pml_nas <- pml_df %>% #For training dataset
+        is.na() %>%
+        as.data.frame()
+relevant <- pml_nas[,is.na(summary(pml_nas)[3,])] %>%
+        names()
+
+pml_nas_pred <- pml_pred %>% #For prediction dataset, variables are the same except of 1 exception.
+        is.na() %>%
+        as.data.frame()
+relevant_pred <- pml_nas_pred[,grep("FALSE", x=summary(pml_nas_pred)[2,])] %>%
+        names() #Identify Vector without NAs
+
+sum(is.na(pml_df[,relevant])==TRUE) ##All variables with NAs are excluded
+sum(is.na(pml_pred[,relevant_pred])==TRUE) ##All variables with NAs are excluded
+
+pml_df <- pml_df[,relevant]
+pml_pred <- pml_pred[,relevant_pred]
+
+rm(pml_nas, pml_nas_pred, relevant, relevant_pred) ##Clear for unnecessary sets
+
+#Create Training and Testing Set
+set.seed(123)
+inTrain <- createDataPartition(y = pml_df$X1, p = 0.6, list = FALSE)
+pml_training <- pml_df[inTrain,]
+pml_testing <- pml_df[-inTrain,]
+pml_training <- pml_training[,-1] #X1 is just a running number
+pml_testing <- pml_testing[,-1] #X1 is just a running number
+rm(inTrain)
+```
+
+#Build-Up of the Model
+
+Outcome is the "classe"-variable. The assignment requires a documentation how I built my model, how I used cross validation, what I think the expected out of sample error is.
+
+I use the prediction with tree - model, which works with the rpart-method.
+
+```{r, eval=FALSE}
+#Build up a model using the defined training and testing dataset (Cross Validation)
+modfit <- train(classe ~ .,
+                method = "rpart",
+                data = pml_training)
+
+pred <- predict(modfit, pml_testing)
+
+acc <- confusionMatrix(pred, pml_testing$classe)$overall[1]
 
 ```
+
+```{r, include=FALSE}
+#Build up a model using the defined training and testing dataset (Cross Validation)
+modfit <- train(classe ~ .,
+                method = "rpart",
+                data = pml_training)
+
+pred <- predict(modfit, pml_testing)
+
+acc <- confusionMatrix(pred, pml_testing$classe)$overall[1]; acc
+
+```
+
+The accuracy of my model shows `r acc`.
+
+```{r}
+#Out of sample error
+
+OutOfSampleError <- as.numeric(1-acc)
+OutOfSampleError
+
+```
+My out-of-sample-error is pretty big. The proposed model does not seem the be the best choice.
 
 #Prediction Analysis
 
+The assignment has given 20 cases to predict. This shows the result of the 20 predictions, which will be submitted in the subsequent quiz of this assignment:
 
-```{r}
+
+```{r fig1, fig.cap="This shows the decision tree, which is used for the prediction."}
+
+fancyRpartPlot(modfit$finalModel)
 
 ```
 
-```{r}
+```{r, results='markup'}
+#Running of the prediction and show the results
+
+predict(modfit, pml_pred)
 
 ```
 
+The predicted results leads to 19 out of 20 correctly predicted cases.
